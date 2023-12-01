@@ -86,6 +86,25 @@ contract MainContract is AccessControlDefaultAdminRules{
         bool isValid;
     }
 
+    struct paymentInfo {
+        address patientAddr;
+        uint256 totalCost;
+        string paymentMethod;
+        string billDetail;
+        bool isPaid;
+        bool isValid;
+    }
+
+    struct hospitalRecord {
+        address patientAddr;
+        uint256 wardId;
+        uint256 bedNumber;
+        string checkInDate;
+        paymentInfo payment;
+        bool isDischarge;
+        bool isValid;
+    }
+
     mapping(uint256 => bytes32) roles;
     mapping(address => patientData) patientDataSet;
     mapping(address => address) approveInfo;
@@ -95,6 +114,8 @@ contract MainContract is AccessControlDefaultAdminRules{
     mapping(address => reservationRecord) reservationRecords;
     mapping(address => mapping(uint256 => medicalRecord)) medicalRecords;
     mapping(address => mapping (uint256 => prescriptionRecord)) prescriptionRecords;
+    mapping(address => paymentInfo) paymentRecords;
+    mapping(address => hospitalRecord) hospitalRecords;
 
     constructor()AccessControlDefaultAdminRules(3 days,msg.sender){
         roles[0] = MEDICAL_INSTITUTION_ROLE;
@@ -123,6 +144,32 @@ contract MainContract is AccessControlDefaultAdminRules{
         require(prescriptionRecords[_patientAddr][_recordId].isChecked == false,"Error : this record has already been checked.");
         prescriptionRecords[_patientAddr][_recordId].isChecked = true;
     }
+
+    function addHospitalInfo(address _patientAddr,uint256 _wardId,uint256 _bedNumber,string memory _checkInDate) 
+    public onlyRole(MEDICAL_INSTITUTION_ROLE) {
+        require(patientDataSet[_patientAddr].isValid == true,"Error : This patient hasn't been added yet.");
+        require(hospitalRecords[_patientAddr].isValid == true,"Error : This hospital info has already been added.");
+        paymentInfo memory p = paymentInfo(_patientAddr,0,"","",false,true);
+        hospitalRecord memory h = hospitalRecord(_patientAddr,_wardId,_bedNumber,_checkInDate,p,false,true);
+        paymentRecords[_patientAddr] = p;
+        hospitalRecords[_patientAddr] = h;
+    }
+
+    function updateBillInfo(address _patientAddr,uint256 _totalCost,string memory _billDetail) 
+    public onlyRole(MEDICAL_INSTITUTION_ROLE){
+        require(patientDataSet[_patientAddr].isValid == true,"Error : This patient hasn't been added yet.");
+        require(paymentRecords[_patientAddr].isValid == true,"Error : This payment record hasn't been added yet.");
+        paymentRecords[_patientAddr].totalCost = _totalCost;
+        paymentRecords[_patientAddr].billDetail = _billDetail;
+    }
+
+    function dischargeReview(address _patientAddr) public onlyRole(MEDICAL_INSTITUTION_ROLE){
+        require(patientDataSet[_patientAddr].isValid == true,"Error : This patient hasn't been added yet.");
+        require(hospitalRecords[_patientAddr].isValid == true,"Error : This patient's hospital records hasn't been uploaded");
+        require(hospitalRecords[_patientAddr].payment.isPaid == true,"Error : This patient hasn't pay the bill.");
+        require(hospitalRecords[_patientAddr].isDischarge == false,"Error : This patient has already discharged.");
+        hospitalRecords[_patientAddr].isDischarge = true;
+    }
     //Patient relevant function
     function addPatient(address _patientAddr,string memory _name,string memory _idNumber,string memory _phoneNumber) 
     public onlyRole(DEFAULT_ADMIN_ROLE){
@@ -145,6 +192,27 @@ contract MainContract is AccessControlDefaultAdminRules{
         doctorDataSet[_doctorAddr].isAvaliable = false;
         reservationRecord memory r = reservationRecord(msg.sender,_doctorAddr,_time,true);
         reservationRecords[msg.sender] = r;
+    }
+
+    function checkTheBill() public view onlyRole(PATIENT_ROLE) returns(uint256,string memory){
+        require(patientDataSet[msg.sender].isValid == true,"Error : This patient hasn't been added yet.");
+        require(paymentRecords[msg.sender].isValid == true,"Error : This patient's payment records hasn't been uploaded");
+        uint256 amount = paymentRecords[msg.sender].totalCost;
+        string memory m = paymentRecords[msg.sender].billDetail;
+        return (amount,m);
+    }
+
+    function payTheBill(string memory _paymentMethod,uint256 _balance)
+    public onlyRole(PATIENT_ROLE) returns(bool,uint256) {
+        require(patientDataSet[msg.sender].isValid == true,"Error : This patient hasn't been added yet.");
+        require(paymentRecords[msg.sender].isValid == true,"Error : This patient's payment records hasn't been uploaded");
+        if(_balance >= paymentRecords[msg.sender].totalCost) {
+            _balance -= paymentRecords[msg.sender].totalCost;
+            paymentRecords[msg.sender].paymentMethod = _paymentMethod;
+            paymentRecords[msg.sender].isPaid = true;
+            hospitalRecords[msg.sender].payment = paymentRecords[msg.sender];
+            return (true,_balance);
+        }else return (false,_balance);
     }
 
     //Doctor relevant function
