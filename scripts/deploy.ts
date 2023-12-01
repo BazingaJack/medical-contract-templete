@@ -1,5 +1,4 @@
 import {ethers} from "hardhat";
-import { ContractFactory } from "ethers";
 import * as fs from "fs";
 
 async function main() {
@@ -7,14 +6,15 @@ async function main() {
     // Come from the hardhat.config.ts, the first account is the default account to deploy contracts.
     const [admin, patient, doctor] = await ethers.getSigners();
     console.log('Deploy contracts in ' + network)
-    console.log('Deploy Main Contract...')
-    const MainContract: ContractFactory = await ethers.getContractFactory("MainContract");
-    const maincontract = await MainContract.deploy();
+    console.log('Deploy MedicalTemplate Contract...')
+    const MedicalTemplate = await ethers.getContractFactory('MedicalTemplate');
+    const medical = await MedicalTemplate.deploy();
+    await medical.deployed();
     // save the addresses
     const addresses = {
-        mainContract : maincontract.getAddress
+        MedicalTemplate : medical.address
     }
-    // console.log(addresses)
+    console.log(addresses)
     fs.writeFile(`address-${network}.json`, JSON.stringify(addresses, undefined, 4), err => {
         if (err) console.log('Write file error: ' + err.message)
         else console.log(`Addresses is saved into address-${network}.json...`)

@@ -1,1 +1,2 @@
 # medical-contract-templete
+目前合约已部署到以太坊的goerli测试网上，合约部署地址为0x296CBE80705D9caAf39b897dd61e598E36756859

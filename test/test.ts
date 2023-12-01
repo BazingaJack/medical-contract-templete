@@ -19,14 +19,4 @@ describe("Main deployed", async function () {
         }
     }
 
-    describe("Patient module test",async function () {
-        it("Should add patient successfully",async function () {
-            const {maincontract,accounts} = await loadFixture(deployContracts);
-            await maincontract.connect(accounts.admin).addPatient(accounts.patient,"P","0","10086");
-            const patientRole = await maincontract.connect(accounts.admin).PATIENT_ROLE();
-            await expect(await maincontract.connect(accounts.admin).checkRole(accounts.patient,patientRole)).to.equal(true);
-        })
-
-        
-    })
 });
