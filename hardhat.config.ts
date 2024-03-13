@@ -14,6 +14,12 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {},
+    //Recommended
+    sepolia: {
+      url: 'https://sepolia.infura.io/v3/e45c5cb64e5a4a6c9b6218358c529b65',
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+    //Unsuggested
     goerli: {
       url: 'https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],

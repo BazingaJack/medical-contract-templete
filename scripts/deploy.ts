@@ -4,7 +4,6 @@ import * as fs from "fs";
 async function main() {
     const network: any = process.env.HARDHAT_NETWORK;
     // Come from the hardhat.config.ts, the first account is the default account to deploy contracts.
-    const [admin, patient, doctor] = await ethers.getSigners();
     console.log('Deploy contracts in ' + network)
     console.log('Deploy MedicalTemplate Contract...')
     const MedicalTemplate = await ethers.getContractFactory('MedicalTemplate');

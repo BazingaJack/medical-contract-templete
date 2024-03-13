@@ -145,8 +145,8 @@ contract MedicalTemplate is AccessControlDefaultAdminRules{
     }
 
     //checkRole函数用于检查给定的地址是否拥有某个角色权限
-    function checkRole(address _checkAddr,bytes32 _role) public view onlyRole(DEFAULT_ADMIN_ROLE) returns(bool) {
-        return hasRole(_role, _checkAddr);
+    function checkRole(address _checkAddr,uint256 _role) public view onlyRole(DEFAULT_ADMIN_ROLE) returns(bool) {
+        return hasRole(roles[_role], _checkAddr);
     }
 
     //以下方法基本都带有onlyRole修饰器，用于限定该函数只有拥有特定某个角色权限的账户才可以调用
@@ -173,8 +173,8 @@ contract MedicalTemplate is AccessControlDefaultAdminRules{
     function addHospitalInfo(address _patientAddr,uint256 _wardId,uint256 _bedNumber,string memory _checkInDate) 
     public onlyRole(MEDICAL_INSTITUTION_ROLE) {
         require(patientDataSet[_patientAddr].isValid == true,"Error : This patient hasn't been added yet.");
-        require(hospitalRecords[_patientAddr].isValid == true,"Error : This hospital info has already been added.");
-        paymentInfo memory p = paymentInfo(_patientAddr,0,"","",false,true);
+        require(hospitalRecords[_patientAddr].isValid == false,"Error : This hospital info has already been added.");
+        paymentInfo memory p = paymentInfo(_patientAddr,0,"","",false,false);
         hospitalRecord memory h = hospitalRecord(_patientAddr,_wardId,_bedNumber,_checkInDate,p,false,true);
         paymentRecords[_patientAddr] = p;
         hospitalRecords[_patientAddr] = h;
@@ -184,9 +184,10 @@ contract MedicalTemplate is AccessControlDefaultAdminRules{
     function updateBillInfo(address _patientAddr,uint256 _totalCost,string memory _billDetail) 
     public onlyRole(MEDICAL_INSTITUTION_ROLE){
         require(patientDataSet[_patientAddr].isValid == true,"Error : This patient hasn't been added yet.");
-        require(paymentRecords[_patientAddr].isValid == true,"Error : This payment record hasn't been added yet.");
+        require(paymentRecords[_patientAddr].isValid == false,"Error : This payment record has been added.");
         paymentRecords[_patientAddr].totalCost = _totalCost;
         paymentRecords[_patientAddr].billDetail = _billDetail;
+        paymentRecords[_patientAddr].isValid = true;
     }
 
     //对患者进行出院审核，只有完成住院账单支付才可以出院
@@ -235,16 +236,15 @@ contract MedicalTemplate is AccessControlDefaultAdminRules{
 
     //患者支付账单，此处只是模拟进行支付，传入的balance模拟为患者的余额，余额少于账单金额会返回支付失败信息，成功则会返回剩余金额
     function payTheBill(string memory _paymentMethod,uint256 _balance)
-    public onlyRole(PATIENT_ROLE) returns(bool,uint256) {
+    public onlyRole(PATIENT_ROLE) returns(uint256) {
         require(patientDataSet[msg.sender].isValid == true,"Error : This patient hasn't been added yet.");
         require(paymentRecords[msg.sender].isValid == true,"Error : This patient's payment records hasn't been uploaded");
-        if(_balance >= paymentRecords[msg.sender].totalCost) {
-            _balance -= paymentRecords[msg.sender].totalCost;
-            paymentRecords[msg.sender].paymentMethod = _paymentMethod;
-            paymentRecords[msg.sender].isPaid = true;
-            hospitalRecords[msg.sender].payment = paymentRecords[msg.sender];
-            return (true,_balance);
-        }else return (false,_balance);
+        require(_balance >= paymentRecords[msg.sender].totalCost,"Error : Insufficient balance.");
+        _balance -= paymentRecords[msg.sender].totalCost;
+        paymentRecords[msg.sender].paymentMethod = _paymentMethod;
+        paymentRecords[msg.sender].isPaid = true;
+        hospitalRecords[msg.sender].payment = paymentRecords[msg.sender];
+        return (_balance);
     }
 
     //Doctor relevant function
@@ -268,7 +268,7 @@ contract MedicalTemplate is AccessControlDefaultAdminRules{
 
     //医生更新患者的基础健康数据
     function updatePatientBasicHealthInfo(address _patientAddr,uint256 _height,uint256 _weight,uint256 _bloodPressure,uint256 _bloodSugar) 
-    internal onlyRole(DOCTOR_ROLE){
+    public onlyRole(DOCTOR_ROLE){
         require(patientDataSet[_patientAddr].isValid == true,"Error : This patient hasn't been added yet.");
         patientDataSet[_patientAddr].patientHealthInfo.height = _height;
         patientDataSet[_patientAddr].patientHealthInfo.weight = _weight;
@@ -279,7 +279,7 @@ contract MedicalTemplate is AccessControlDefaultAdminRules{
     //医生更新患者的就诊记录数据
     function updatePatientMedicalRecord(address _patientAddr,uint256 _time,
     string memory _diseaseName,string memory _detailInfo,string memory _doctorAdvice)
-    internal onlyRole(DOCTOR_ROLE){
+    public onlyRole(DOCTOR_ROLE){
         require(patientDataSet[_patientAddr].isValid == true,"Error : This patient hasn't been added yet.");
         uint256 nextRecordId = patientDataSet[_patientAddr].medicalRecordNum;
         patientDataSet[_patientAddr].medicalRecordNum++;
@@ -289,7 +289,7 @@ contract MedicalTemplate is AccessControlDefaultAdminRules{
 
     //医生更新患者的处方记录数据
     function updatePrescriptionRecord(address _patientAddr,uint256 _time,string memory _drugName,uint256 _amount,string memory _description)
-    internal onlyRole(DOCTOR_ROLE){
+    public onlyRole(DOCTOR_ROLE){
         require(patientDataSet[_patientAddr].isValid == true,"Error : This patient hasn't been added yet.");
         uint256 nextRecordId = patientDataSet[_patientAddr].prescriptionRecordNum;
         patientDataSet[_patientAddr].prescriptionRecordNum++;
